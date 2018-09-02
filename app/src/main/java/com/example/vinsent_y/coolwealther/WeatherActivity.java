@@ -1,5 +1,9 @@
 package com.example.vinsent_y.coolwealther;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
@@ -64,6 +68,8 @@ public class WeatherActivity extends AppCompatActivity {
 
     public DrawerLayout drawerLayout;
 
+    private String weatherId;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,6 +80,12 @@ public class WeatherActivity extends AppCompatActivity {
             getWindow().setStatusBarColor(Color.TRANSPARENT);
         }
         setContentView(R.layout.activity_weather);
+
+        intentFilter = new IntentFilter();
+        intentFilter.addAction("com.example.UPDATE_WEATHER");
+        weatherUpdateReceiver = new WeatherUpdateReceiver();
+        registerReceiver(weatherUpdateReceiver,intentFilter);
+
 
         weatherLayout = findViewById(R.id.weather_layout);
         swipeRefresh = findViewById(R.id.swipe_refresh);
@@ -104,7 +116,6 @@ public class WeatherActivity extends AppCompatActivity {
             loadBingPic();
         }
 
-        final String weatherId;
 
         String weatherString = prefs.getString("weather", null);
         if (weatherString != null) {
@@ -241,5 +252,25 @@ public class WeatherActivity extends AppCompatActivity {
         carWashText.setText(carWash);
         sportText.setText(sport);
         weatherLayout.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(weatherUpdateReceiver);
+    }
+
+    private IntentFilter intentFilter;
+
+    private WeatherUpdateReceiver weatherUpdateReceiver;
+
+
+    //测试服务|广播是否成功
+    private class WeatherUpdateReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            requestWeather(weatherId);
+            loadBingPic();
+        }
     }
 }
