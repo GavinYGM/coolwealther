@@ -1,17 +1,37 @@
 package com.example.vinsent_y.coolwealther;
 
+
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v4.view.GravityCompat;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+/**
+ * A simple {@link Fragment} subclass.
+ */
+
+
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -34,7 +54,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
-public class ChooseAreaActivity extends AppCompatActivity {
+public class ChooseAreaFragment extends Fragment {
 
     public static final int LEVEL_PROVINCE = 0;
 
@@ -67,30 +87,24 @@ public class ChooseAreaActivity extends AppCompatActivity {
 
     private ProgressDialog progressDialog;
 
+    private Button backButton;
 
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.choose_area);
-        Toolbar toolbar = findViewById(R.id.tool_bar);
-        setSupportActionBar(toolbar);
-
-        controlBackButton(false);
-
-        titleText = findViewById(R.id.title_text);
-
-        listView = findViewById(R.id.list_view);
-        adapter = new ArrayAdapter<>(ChooseAreaActivity.this, android.R.layout.simple_list_item_1, dataList);
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.choose_area, container, false);
+        titleText = view.findViewById(R.id.title_text);
+        listView = view.findViewById(R.id.list_view);
+        adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, dataList);
+        backButton = view.findViewById(R.id.back_button);
         listView.setAdapter(adapter);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        if (prefs.getString("weather", null) != null) {
-            Intent intent = new Intent(this, WeatherActivity.class);
-            startActivity(intent);
-            finish();
-        }
+        return view;
+    }
 
-        queryProvinces();
+    @Override
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -103,18 +117,49 @@ public class ChooseAreaActivity extends AppCompatActivity {
                     queryCounties();
                 } else if (currentLevel == LEVEL_COUNTY) {
                     String weatherId = countyList.get(i).getWeatherId();
-                    Intent intent = new Intent(ChooseAreaActivity.this, WeatherActivity.class);
-                    intent.putExtra("weather_id",weatherId);
-                    startActivity(intent);
-                    finish();
+                    if (getActivity() instanceof MainActivity) {
+                        Intent intent = new Intent(getContext(), WeatherActivity.class);
+                        intent.putExtra("weather_id",weatherId);
+                        startActivity(intent);
+                        getActivity().finish();
+                    } else if (getActivity() instanceof WeatherActivity) {
+                        WeatherActivity activity = (WeatherActivity) getActivity();
+                        activity.drawerLayout.closeDrawers();
+                        activity.swipeRefresh.setRefreshing(true);
+                        activity.requestWeather(weatherId);
+                    }
+
                 }
             }
         });
+
+        backButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (currentLevel == LEVEL_COUNTY) {
+                    queryCities();
+                } else if (currentLevel == LEVEL_CITY) {
+                    queryProvinces();
+                }
+            }
+        });
+        queryProvinces();
     }
+
+//    @Override
+//    protected void onCreate(Bundle savedInstanceState) {
+//        super.onCreate(savedInstanceState);
+//
+//        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+//        if (prefs.getString("weather", null) != null) {
+//            Intent intent = new Intent(this, WeatherActivity.class);
+//            startActivity(intent);
+//            finish();
+//        }
+//    }
 
     private void queryCounties() {
         titleText.setText(selectedCity.getCityName());
-        controlBackButton(false);
         countyList = DataSupport.where("cityId = ?", String.valueOf(selectedCity.getId())).find(County.class);
         if (countyList.size() > 0) {
             dataList.clear();
@@ -137,7 +182,6 @@ public class ChooseAreaActivity extends AppCompatActivity {
 
     private void queryCities() {
         titleText.setText(selectedProvince.getProvinceName());
-        controlBackButton(false);
         cityList = DataSupport.where("provinceId = ?", String.valueOf(selectedProvince.getId())).find(City.class);
         if (cityList.size() > 0) {
             dataList.clear();
@@ -156,7 +200,6 @@ public class ChooseAreaActivity extends AppCompatActivity {
 
     private void queryProvinces() {
         titleText.setText("中国");
-        controlBackButton(true);
         provinceList = DataSupport.findAll(Province.class);
         if (provinceList.size() > 0) {
             dataList.clear();
@@ -180,11 +223,12 @@ public class ChooseAreaActivity extends AppCompatActivity {
         HttpUtil.sendOkHttpRequest(address, new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                runOnUiThread(new Runnable() {
+
+                getActivity().runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         closeProgressDialog();
-                        Toast.makeText(ChooseAreaActivity.this,"Loading Fail", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(),"Loading Fail", Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -207,7 +251,7 @@ public class ChooseAreaActivity extends AppCompatActivity {
 
                 }
                 if (result) {
-                    runOnUiThread(new Runnable() {
+                    getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             closeProgressDialog();
@@ -238,34 +282,15 @@ public class ChooseAreaActivity extends AppCompatActivity {
 
     private void showProgressDialog() {
         if (progressDialog == null) {
-            progressDialog = new ProgressDialog(ChooseAreaActivity.this);
+            progressDialog = new ProgressDialog(getActivity());
             progressDialog.setTitle("Loading...");
             progressDialog.setCanceledOnTouchOutside(false);
         }
         progressDialog.show();
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case android.R.id.home:
-                if (currentLevel == LEVEL_COUNTY) {
-                    queryCities();
-                } else if (currentLevel == LEVEL_CITY) {
-                    queryProvinces();
-                }
 
-                break;
-        }
-
-        return true;
-    }
-
-    public void controlBackButton(boolean isHide) {
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null && isHide == false) {
-            actionBar.setDisplayHomeAsUpEnabled(true);
-        }
-    }
 
 }
+
+
