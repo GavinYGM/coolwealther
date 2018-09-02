@@ -1,6 +1,9 @@
 package com.example.vinsent_y.coolwealther;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -17,6 +20,7 @@ import android.widget.Toast;
 import com.example.vinsent_y.coolwealther.db.City;
 import com.example.vinsent_y.coolwealther.db.County;
 import com.example.vinsent_y.coolwealther.db.Province;
+import com.example.vinsent_y.coolwealther.gson.Weather;
 import com.example.vinsent_y.coolwealther.util.HttpUtil;
 import com.example.vinsent_y.coolwealther.util.Utility;
 
@@ -78,6 +82,14 @@ public class ChooseAreaActivity extends AppCompatActivity {
         listView = findViewById(R.id.list_view);
         adapter = new ArrayAdapter<>(ChooseAreaActivity.this, android.R.layout.simple_list_item_1, dataList);
         listView.setAdapter(adapter);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if (prefs.getString("weather", null) != null) {
+            Intent intent = new Intent(this, WeatherActivity.class);
+            startActivity(intent);
+            finish();
+        }
+
         queryProvinces();
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -89,6 +101,12 @@ public class ChooseAreaActivity extends AppCompatActivity {
                 } else if (currentLevel == LEVEL_CITY) {
                     selectedCity = cityList.get(i);
                     queryCounties();
+                } else if (currentLevel == LEVEL_COUNTY) {
+                    String weatherId = countyList.get(i).getWeatherId();
+                    Intent intent = new Intent(ChooseAreaActivity.this, WeatherActivity.class);
+                    intent.putExtra("weather_id",weatherId);
+                    startActivity(intent);
+                    finish();
                 }
             }
         });
